@@ -17,6 +17,7 @@ from PIL import Image
 from transformers import CLIPProcessor, CLIPModel
 from docx import Document
 from proj import config
+import re
 
 # Load models
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -269,7 +270,24 @@ def get_documents():
         return
     return document_files
 
+def clean_text(text):
+    # Remove table-like structures
+    text = re.sub(r'\|.*?\|', '', text)
+    # Remove index numbers (e.g., 3.2, 3.2.5)
+    text = re.sub(r'\d+\.\d+(\.\d+)?', '', text)
+    # Remove page numbers (e.g., 8, 9)
+    text = re.sub(r'\b\d+\b', '', text)
+    # Remove excessive whitespace
+    text = re.sub(r'\s{2,}', ' ', text)
+    # Remove leading/trailing whitespace
+    text = text.strip()
+    return text
+
 def chunk_text(text, chunk_size=500):
+
+     # Clean the text before chunking
+    text = clean_text(text)  
+
     splitter = RecursiveCharacterTextSplitter(
     chunk_size=chunk_size,
     chunk_overlap=200,
@@ -334,14 +352,14 @@ def process_documents():
         document_id = db.insert_documents(document)
         print(f"Inserted document with ID: {document_id}")
         if document_id == []:
-            return
+            continue
 
 
     # Chunking and indexing
         chunks = chunk_text(text)
-        print(chunks[0], chunks[1], chunks[150])
-        import pdb
-        pdb.set_trace()
+        print(chunks)
+        #import pdb
+        #pdb.set_trace()
         text_embeddings = db.generate_text_embeddings(chunks, document_id[0])
         print(text_embeddings)
         #image_embeddings = db.generate_image_embeddings(images, document_id[0])
@@ -349,13 +367,13 @@ def process_documents():
         print(f"✅ Stored {len(chunks)} chunks and embeddings for {file_path} in SQLite!")
     
     # creating fiass index
-        if len(text_embeddings) != 0:
-            faiss_index = create_faiss_hnsw_index(text_embeddings)
-            print(faiss_index)
-            print(faiss_index.ntotal)
-            faiss.write_index(faiss_index, faiss_index_file)
-            print(f"✅ Stored {faiss_index} for {document_id[0]} in {faiss_index_file}!")
-    
+    embeddings = db.get_embeddings()
+    faiss_index = create_faiss_hnsw_index(embeddings)
+    print(faiss_index)
+    print(faiss_index.ntotal)
+    faiss.write_index(faiss_index, faiss_index_file)
+    print(f"✅ Stored {faiss_index}  in {faiss_index_file}!")
+
 
 if __name__ == "__main__":
    

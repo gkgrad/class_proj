@@ -65,7 +65,9 @@ class QueryDocument:
 
     # Example usage:
     def search_and_print_results(self, query):
-        query = "what is Similarity measures"
+        print(query)
+        #
+        # query = "what is Similarity measures"
         index = load_faiss_index(self.faiss_index_file)  # Load your HNSW index
         #print("#########################")
         #print(index.d)  # This should m
@@ -73,23 +75,29 @@ class QueryDocument:
         results = self.search_hnsw_index(query, index)
         #print(results)
 
-        for result in results:
-            print(f"Type: {result['type']}")
-            print(f"Document Name: {result['document_name']}")
-            
-            if result['type'] == 'image':
-                print(f"Image ID: {result['image_id']}")
-            elif result['type'] == 'text':
-                print(f"Chunk Text: {result['chunk_text']}")
-            
-            print(f"Distance: {result['distance']}")
-            print("---------------")
+        if results:
 
+            print("Search Results:")
 
+            for i, result in enumerate(results):
+                
+                print(f"\nResult {i+1}:")
+               
+                print(f"  Document: {result['document_name']}")
+
+                print(f"  Chunk Text: {result['chunk_text']}")
+
+                print(f"  Score: {result['distance']:.4f}") # Format the distance
+
+                print("-" * 20)  # Separator
+
+        else:
+
+            print("No results found.")
     
 def main():
     query = QueryDocument()
-    search_query = ["what is chunking strategy?"] 
+    search_query = "risk."
     print(query.search_and_print_results(search_query))
     
 
