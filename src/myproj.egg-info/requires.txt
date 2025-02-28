@@ -1,0 +1,4 @@
+faiss-cpu>=1.10.0
+ipykernel>=6.29.5
+sentence-transformers>=3.4.1
+svlearn-bootcamp>=0.1.7
