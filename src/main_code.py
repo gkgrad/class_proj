@@ -223,11 +223,12 @@ class DocumentDatabase:
         self.conn.close()
 
 def extract_from_pdf(file_path):
-    with open(file_path, "rb") as file:
-        pdf_reader = PyPDF2.PdfReader(file)
-        text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+
+    # Use Docling to extract text
+   # text = docling.convert(file_path, from_format="pdf", to_format="text")
+    converter = DocumentConverter()
+    result = converter.convert(file_path)
+    text = result.document.export_to_markdown()
 
     images = convert_from_path(file_path)
     encoded_images = []
@@ -313,13 +314,10 @@ def process_documents():
         document = [(file_path, file_extension, "")]
 
         # Insert a document
-        document_id = db.insert_documents(document)
-        print(f"Inserted document with ID: {document_id}")
+        #document_id = db.insert_documents(document)
+        #print(f"Inserted document with ID: {document_id}")
 
-        if document_id == []:
-            return
-    
-   
+        
     # Parsing
 
         if file_extension == '.pdf':
@@ -332,21 +330,31 @@ def process_documents():
             print(f"⚠️ Unsupported file type: {file_extension}")
             continue
         #print(text)
+         # Insert a document
+        document_id = db.insert_documents(document)
+        print(f"Inserted document with ID: {document_id}")
+        if document_id == []:
+            return
+
 
     # Chunking and indexing
         chunks = chunk_text(text)
-        print("total chunks")
-        print(len(chunks))
+        print(chunks[0], chunks[1], chunks[150])
+        import pdb
+        pdb.set_trace()
         text_embeddings = db.generate_text_embeddings(chunks, document_id[0])
+        print(text_embeddings)
         #image_embeddings = db.generate_image_embeddings(images, document_id[0])
 
         print(f"✅ Stored {len(chunks)} chunks and embeddings for {file_path} in SQLite!")
     
     # creating fiass index
-        faiss_index = create_faiss_hnsw_index(text_embeddings)
-        print(faiss_index.ntotal)
-        faiss.write_index(faiss_index, faiss_index_file)
-        print(f"✅ Stored {faiss_index} for {document_id[0]} in {faiss_index_file}!")
+        if len(text_embeddings) != 0:
+            faiss_index = create_faiss_hnsw_index(text_embeddings)
+            print(faiss_index)
+            print(faiss_index.ntotal)
+            faiss.write_index(faiss_index, faiss_index_file)
+            print(f"✅ Stored {faiss_index} for {document_id[0]} in {faiss_index_file}!")
     
 
 if __name__ == "__main__":

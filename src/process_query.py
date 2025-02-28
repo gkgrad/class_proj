@@ -21,53 +21,57 @@ class QueryDocument:
         self.db = DocumentDatabase('document_database.db')
     
     
-    def search_hnsw_index(self, query, index, k=1):
+    def search_hnsw_index(self, query, index, k=5):
         query_embedding = self.embedder.encode([query], convert_to_numpy=True)
         #query_embedding = np.ascontiguousarray(query_embedding, dtype='float32')
-        print("*********************************")
-        print(query_embedding.shape)
+        #print("*********************************")
+        #print(query_embedding.shape)
         index.hnsw.efSearch = 128  # Adjust tradeoff between speed and recall
         distances, indices = index.search(query_embedding, k)
-
+        
         # Assuming the indices correspond to rows in your IMAGE or CHUNK table
         conn = self.db.connect()
         cursor = conn.cursor()
 
         results = []
-        for idx in indices[0]:  
-            
-            # Check if it's a text chunk
+        for idx in range(len(indices[0])):
+            index_id = indices[0][idx]  # Get the index within the Faiss index
+            #print("INDEX_ID", index_id)
+            # Assuming the indices correspond to the order in which embeddings were added
             cursor.execute('''
-                SELECT * FROM CHUNK WHERE ChunkID = ?
-            ''', (idx,))
-            chunk_result = cursor.fetchone()
-            
-            if chunk_result:
-                chunk_id, document_id, chunk_text, embedding = chunk_result
+                SELECT ChunkID, DocumentID, ChunkText FROM CHUNK
+            ''')
+            all_chunks = cursor.fetchall()
+            if index_id < len(all_chunks):
+                chunk_id, document_id, chunk_text = all_chunks[index_id]
+
                 cursor.execute('''
                     SELECT FileName FROM DOCUMENT WHERE DocumentID = ?
                 ''', (document_id,))
                 document_name = cursor.fetchone()[0]
+
                 results.append({
                     'type': 'text',
                     'document_name': document_name,
                     'chunk_text': chunk_text,
-                    'distance': distances[0][indices[0].tolist().index(idx)]
+                    'distance': distances[0][idx]
                 })
+            else:
+                print(f"Warning: Index {index_id} out of bounds for chunks.")
 
         conn.close()
-
         return results
+
 
     # Example usage:
     def search_and_print_results(self, query):
         query = "what is Similarity measures"
         index = load_faiss_index(self.faiss_index_file)  # Load your HNSW index
-        print("#########################")
-        print(index.d)  # This should m
-        print(index.ntotal) 
+        #print("#########################")
+        #print(index.d)  # This should m
+        #print(index.ntotal) 
         results = self.search_hnsw_index(query, index)
-        print(results)
+        #print(results)
 
         for result in results:
             print(f"Type: {result['type']}")
